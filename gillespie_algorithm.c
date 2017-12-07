@@ -16,8 +16,7 @@ static double poisConst = 1.;
 
 double poisMean2 = 0;
 
-
-static size_t mcPas = 10000;
+static size_t mcPas = 100000, numProm = 20, maxL = 100;
 
 void fillPoisLat(double **poisLat) {
 
@@ -36,6 +35,23 @@ void fillPoisLat(double **poisLat) {
     }
 
     poisMean2 = 1 / poisMean2;
+
+}
+
+void fillStateLat(int **stateLat) {
+
+    int i, j;
+
+    for (i = 0; i < L; i++) {
+        for (j = 0; j < L; j++) {
+            if((double)rand()/RAND_MAX < 0.5){
+                stateLat[i][j] = 1;
+            }
+            else{
+                stateLat[i][j] = 0;
+            }
+        }
+    }
 
 
 }
@@ -73,12 +89,12 @@ double meanMtrxInt(int **mtrx, int lenRow, int lenCol) {
 }
 
 
-double rand_expo(double param) {
+long double rand_expo(double param) {
 
-    double u = (double) rand() / RAND_MAX;
+    long double u = (long double) rand() / RAND_MAX;
 
 
-    return -log(1 - u) / param;
+    return -logl(1. - u) / param;
 
 }
 
@@ -121,147 +137,144 @@ int main() {
 //Definimos la lattice de estado que se irá actualizando y la lattice con los coeficientes
 //poisson
 
-
-    size_t i, j, k, m;
-
-    double **poisLat;
-    int **stateLat;
-
-    stateLat = (int **) malloc(L * sizeof(int *));
-    poisLat = (double **) malloc(L * sizeof(double *));
-
     srand(time(NULL));
 
-    printf("%f\n", log(2.7));
-
-
-    for (i = 0; i < L; i++) {
-        poisLat[i] = malloc(L * sizeof(double));
-        stateLat[i] = malloc(L * sizeof(int));
-
-        for (j = 0; j < L; j++) {
-            int r = rand();
-
-            if ((double) r / RAND_MAX < 0.5) {
-                stateLat[i][j] = 1;
-                printf("1 ");
-            } else {
-                stateLat[i][j] = 0;
-
-                printf("0 ");
-            }
-        }
-        printf("\n");
-    }
-
-
-    fillPoisLat(poisLat);
+    size_t i, j, k, m;
+    double mediaEstado;
 //
 //    double poisMed = meanMtrx(poisLat, L, L);
 //
 //
 //    poisMed = L*L*poisMed;
 
-    double tiempo = 0., **allData;
+    long double tiempo = 0.;
     size_t proc;
 
 
-    allData = (double **) malloc(mcPas * sizeof(double *));
 
 
     int vecino, row, col;
-    size_t maxMc = mcPas;
+
+    long double **allData;
+    size_t numIters=(size_t)((log((double)maxL/L)/log(2.))+1);
+
+    allData = (long double**)malloc(numIters*sizeof(long double*));
+
+    double **poisLat;
+    int **stateLat;
+
+    for(m=0;L<maxL;L*=2, m++) {
+        printf("L=%d \n", L);
+
+        allData[m] = malloc(3*sizeof(long double));
 
 
-    for (i = 0; i < mcPas; i++) {
+//        Inicializamos las matrices
 
-        for (j = 0; j < L * L; j++) {
+
+        stateLat = (int **) malloc(L * sizeof(int *));
+        poisLat = (double **) malloc(L * sizeof(double *));
+
+
+
+        for (i = 0; i < L; i++) {
+            poisLat[i] = malloc(L * sizeof(double));
+            stateLat[i] = malloc(L * sizeof(int));
+
+        }
+
+
+        fillPoisLat(poisLat);
+
+        size_t maxMc = mcPas;
+        long double consTime=0., consTimeDesv = 0.;
+        for (k = 0; k < numProm; k++) {
+            printf("%d \n", (int)k);
+
+
+            srand(time(NULL));
+            fillStateLat(stateLat);
+
+            maxMc = mcPas;
+
+
+            for (i = 0; i < mcPas; i++) {
+
+                for (j = 0; j < L * L; j++) {
 
 //            Calculamos el tiempo hasta el proximo cambio y sumamos al tiempo global,
 //            y vemos cual es el proceso cambiado
 
-            tiempo += rand_time(poisMean2);
+                    tiempo += rand_time(poisMean2);
 
-            proc = rand_process(poisLat, L, L);
+                    proc = rand_process(poisLat, L, L);
 
-            row = (int) proc / L;
+                    row = (int) proc / L;
 
-            col = (int) proc % L;
+                    col = (int) proc % L;
 
 //            El nodo seleccionado copia a un vecino al azar
 
-            vecino = (int) 4 * (double) rand() / RAND_MAX;
+                    vecino = rand()%4;
 
-            if (vecino == 0) {
-                stateLat[col][row] = stateLat[col][transPos(row - 1)];
-            } else if (vecino == 1) {
-                stateLat[col][row] = stateLat[col][transPos(row + 1)];
-            } else if (vecino == 2) {
-                stateLat[col][row] = stateLat[transPos(col + 1)][row];
-            } else {
-                stateLat[col][row] = stateLat[transPos(col - 1)][row];
+                    if (vecino == 0) {
+                        stateLat[col][row] = stateLat[col][transPos(row - 1)];
+                    } else if (vecino == 1) {
+                        stateLat[col][row] = stateLat[col][transPos(row + 1)];
+                    } else if (vecino == 2) {
+                        stateLat[col][row] = stateLat[transPos(col + 1)][row];
+                    } else {
+                        stateLat[col][row] = stateLat[transPos(col - 1)][row];
+                    }
+
+                }
+
+
+                mediaEstado = meanMtrxInt(stateLat, L, L);
+
+                if (fabs(mediaEstado - 1.) < 0.1 / (double) (L * L) || fabs(mediaEstado) < 0.1 / (double) (L * L)) {
+                    maxMc = i;
+                    consTime += tiempo/(double)numProm;
+                    consTimeDesv += tiempo * tiempo/(double)numProm;
+                    break;
+                }
+            }
+            if(maxMc == mcPas){
+                printf("No se ha llegado al consenso a L=%d con %d pasos monte carlo\n", L, (int)mcPas);
+
             }
 
         }
 
-        allData[i] = malloc(2 * sizeof(double));
+        allData[m][0] = L*L;
+        allData[m][1] = consTime;
+        allData[m][2] = consTimeDesv;
 
-        allData[i][0] = tiempo;
-        allData[i][1] = meanMtrxInt(stateLat, L, L);
-
-        if (fabs(allData[i][1] - 1.) < 0.1 / (double) (L * L) || fabs(allData[i][1]) < 0.1 / (double) (L * L)) {
-            maxMc = i;
-            printf("Se ha alcanzado el equilibrio (todos opinan lo mismo) a tiempo \nT=%f \n\n", tiempo);
-            break;
+//        Liberamos
+        for(i=0;i<L;i++){
+            free(poisLat[i]);
+            free(stateLat[i]);
         }
+        poisLat = NULL;
+        stateLat = NULL;
     }
 
-    printf("Estos numeros deberían ser similares\n");
-    printf("%f\n", maxMc * L * L * sqrt(M_PI * poisMean2 / 2.));
-    printf("%f\n", tiempo);
-    printf("%d\n", (int) maxMc);
 
 
-    FILE *fout = fopen("/home/alex/CLionProjects/tfg/results/voter_model_gillespie.dat", "w");
-    fprintf(fout, "# t, Media Opinión\n");
-    for (i = 0; i < maxMc; i++)
-        fprintf(fout, "%f %f\n", allData[i][0], allData[i][1]);
+    FILE *fout = fopen("/home/alex/CLionProjects/tfg/results/tiempo_consenso.dat", "w");
+    fprintf(fout, "#L, tiempo consenso, desv\n");
+    for (i = 0; i < numIters; i++)
+        fprintf(fout, "%Le %Le %Le\n", allData[i][0],allData[i][1],
+                sqrtl(allData[i][2]-allData[i][1]*allData[i][1]));
 
     fclose(fout);
 
 
-    for (i = 0; i < L; i++) {
-        for (j = 0; j < L; j++) {
-            if (stateLat[i][j] == 1) {
-                printf("1 ");
-            } else {
-                printf("0 ");
-            }
-
-        }
-        printf("\n");
-
-
-    }
-
-
-    for (i = 0; i < L; i++) {
-        free(poisLat[i]);
-        free(stateLat[i]);
-    }
-    for (i = 0; i < maxMc; i++) {
+    for(i=0;i<numIters;i++){
         free(allData[i]);
     }
-
-    free(poisLat);
-    free(stateLat);
     free(allData);
-
-
-    poisLat = NULL;
-    stateLat = NULL;
-    allData = NULL;
-
+    allData=NULL;
 
     return 0;
 }
