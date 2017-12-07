@@ -16,7 +16,7 @@ static double poisConst = 1.;
 
 double poisMean2 = 0;
 
-static size_t mcPas = 100000, numProm = 20, maxL = 100;
+static size_t mcPas = 10000000, numProm = 50, maxL = 100;
 
 void fillPoisLat(double **poisLat) {
 
@@ -235,6 +235,7 @@ int main() {
                 if (fabs(mediaEstado - 1.) < 0.1 / (double) (L * L) || fabs(mediaEstado) < 0.1 / (double) (L * L)) {
                     maxMc = i;
                     consTime += tiempo/(double)numProm;
+                    printf("tiempo %Le \n",consTime);
                     consTimeDesv += tiempo * tiempo/(double)numProm;
                     break;
                 }
