@@ -146,7 +146,7 @@ void initTimes(double **tk){
 
     for(i=0;i<L;i++){
         for(j=0;j<L;j++){
-            tk[i][j] = 0.0001;
+            tk[i][j] = 0.;
         }
     }
 
