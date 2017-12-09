@@ -100,58 +100,29 @@ long double rand_expo(double param) {
 }
 
 
-double rand_time(double param, double ** tk, double **paramLat) {
+double rand_time(double param, double paramTk) {
 
     double u = (double) rand() / RAND_MAX;
 
-    double A=0.;
-
-    int i, j;
-
-    for(i=0;i<L;i++){
-        for(j=0;j<L;j++){
-            A += tk[i][j]/(paramLat[i][j]*paramLat[i][j]);
-
-        }
-    }
 
 
-    return param*(sqrt(A*A-2.*log(1-u)/param)-A);
+    return param*(sqrt(paramTk*paramTk-2.*log(1-u)/param)-paramTk);
 
 }
 
-size_t rand_process(double **poisLat, double **tk) {
+size_t rand_process(double **poisLat, double **tk, double paramTk, double *weights) {
 
-    double *weights, norma = 0.;
 
-    weights = malloc(L*L*sizeof(double));
+    double u = paramTk*(double)rand()/RAND_MAX;
 
-    int i, j;
-    for(i=0;i<L;i++){
-        for(j=0;j<L;j++){
+    double acomulado=0.;
 
-            norma += tk[i][j]/(poisLat[i][j]*poisLat[i][j]);
-            weights[i*L+j] = norma;
-
-        }
-    }
-
-    if(norma == 0.){
-        free(weights);
-        return (size_t)rand()%(L*L);
-    }
-
-    double u = norma*(double)rand()/RAND_MAX;
-
-    for(i=0;i<L*L;i++){
-        if(u<weights[i]){
-            free(weights);
+    for(int i=0;i<L*L;i++){
+        acomulado += weights[i];
+        if(u<acomulado){
             return (size_t)i;
         }
     }
-
-
-
 
 
 }
@@ -175,11 +146,12 @@ void initTimes(double **tk){
 
     for(i=0;i<L;i++){
         for(j=0;j<L;j++){
-            tk[i][j] = 0.;
+            tk[i][j] = 0.0001;
         }
     }
 
 }
+
 void updateTime(double **tk, double elapsedTime){
 
     int i, j;
@@ -223,7 +195,7 @@ int main() {
 
     allData = (long double**)malloc(numIters*sizeof(long double*));
 
-    double **poisLat;
+    double **poisLat, *weights;
     int **stateLat;
 
     for(m=0;L<maxL;L*=2, m++) {
@@ -239,6 +211,7 @@ int main() {
 
         stateLat = (int **) malloc(L * sizeof(int *));
         poisLat = (double **) malloc(L * sizeof(double *));
+        weights = malloc(L*L*sizeof(double));
 
         double **tk, elapsedTime;
 
@@ -262,12 +235,26 @@ int main() {
         long double consTime=0., consTimeDesv = 0.;
         for (k = 0; k < numProm; k++) {
             printf("%d \n", (int)k);
+            double paramTkOld=0., paramTkNew=0.;
+
 
             initTimes(tk);
 
             srand(seed++);
             fillStateLat(stateLat);
-            initTimes(tk);
+
+//            fill weights
+
+            for(i=0;i<L;i++){
+                for(j=0;j<L;j++){
+
+                    weights[i*L+j] = tk[i][j]/poisLat[i][j];
+                    paramTkOld += weights[i*L+j];
+                }
+            }
+
+
+
             tiempo = 0.;
 
             maxMc = mcPas;
@@ -280,19 +267,27 @@ int main() {
 //            Calculamos el tiempo hasta el proximo cambio y sumamos al tiempo global,
 //            y vemos cual es el proceso cambiado
 
-                    elapsedTime =  rand_time(poisMean2, tk, poisLat);
+                    elapsedTime =  rand_time(poisMean2, paramTkOld);
 
                     tiempo += elapsedTime;
 
                     updateTime(tk, elapsedTime);
+                    paramTkNew = paramTkOld+elapsedTime/poisMean2;
+                    for(int l=0; l<L;l++){
+                        for(int cont=0; cont<L; cont++){
+                            weights[l*L+cont]+=elapsedTime/poisLat[l][cont];
+                        }
+                    }
 
-                    proc = rand_process(poisLat, tk);
+                    proc = rand_process(poisLat, tk, paramTkNew, weights);
 
                     row = (int) proc / L;
 
                     col = (int) proc % L;
 
+                    paramTkOld = paramTkNew-tk[row][col]/poisLat[row][col];
                     tk[row][col] = 0.;
+                    weights[row*L+col] = 0.;
 
 //            El nodo seleccionado copia a un vecino al azar
 
@@ -342,6 +337,8 @@ int main() {
             free(stateLat[i]);
         }
         free(tk);
+        free(weights);
+        weights = NULL;
         tk = NULL;
         poisLat = NULL;
         stateLat = NULL;
