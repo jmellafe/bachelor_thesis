@@ -45,10 +45,9 @@ void fillStateLat(int **stateLat) {
 
     for (i = 0; i < L; i++) {
         for (j = 0; j < L; j++) {
-            if((double)rand()/RAND_MAX < 0.5){
+            if ((double) rand() / RAND_MAX < 0.5) {
                 stateLat[i][j] = 1;
-            }
-            else{
+            } else {
                 stateLat[i][j] = 0;
             }
         }
@@ -105,22 +104,21 @@ double rand_time(double param, double paramTk) {
     double u = (double) rand() / RAND_MAX;
 
 
-
-    return param*(sqrt(paramTk*paramTk-2.*log(1-u)/param)-paramTk);
+    return param * (sqrt(paramTk * paramTk - 2. * log(1 - u) / param) - paramTk);
 
 }
 
 size_t rand_process(double **poisLat, double **tk, double paramTk, double *weights) {
 
 
-    double u = paramTk*(double)rand()/RAND_MAX;
+    double u = paramTk * (double) rand() / RAND_MAX;
 
-    double acomulado=0.;
+    double acomulado = 0.;
 
-    for(int i=0;i<L*L;i++){
+    for (int i = 0; i < L * L; i++) {
         acomulado += weights[i];
-        if(u<acomulado){
-            return (size_t)i;
+        if (u < acomulado) {
+            return (size_t) i;
         }
     }
 
@@ -140,24 +138,24 @@ int transPos(int pos) {
 
 }
 
-void initTimes(double **tk){
+void initTimes(double **tk) {
 
     int i, j;
 
-    for(i=0;i<L;i++){
-        for(j=0;j<L;j++){
+    for (i = 0; i < L; i++) {
+        for (j = 0; j < L; j++) {
             tk[i][j] = 0.;
         }
     }
 
 }
 
-void updateTime(double **tk, double elapsedTime){
+void updateTime(double **tk, double elapsedTime) {
 
     int i, j;
 
-    for(i=0;i<L;i++){
-        for(j=0;j<L;j++){
+    for (i = 0; i < L; i++) {
+        for (j = 0; j < L; j++) {
             tk[i][j] += elapsedTime;
         }
     }
@@ -171,7 +169,7 @@ int main() {
 //poisson
 
 
-    unsigned int seed = (unsigned int)time(NULL);
+    unsigned int seed = (unsigned int) time(NULL);
     srand(seed++);
 
     size_t i, j, k, m;
@@ -186,24 +184,22 @@ int main() {
     size_t proc;
 
 
-
-
     int vecino, row, col;
 
     long double **allData;
-    size_t numIters=(size_t)((log((double)maxL/L)/log(2.))+1);
+    size_t numIters = (size_t) ((log((double) maxL / L) / log(2.)) + 1);
 
-    allData = (long double**)malloc(numIters*sizeof(long double*));
+    allData = (long double **) malloc(numIters * sizeof(long double *));
 
     double **poisLat, *weights;
     int **stateLat;
 
-    for(m=0;L<maxL;L*=2, m++) {
+    for (m = 0; L < maxL; L *= 2, m++) {
         printf("L=%d \n", L);
 
         double itersMax = 0.;
 
-        allData[m] = malloc(3*sizeof(long double));
+        allData[m] = malloc(3 * sizeof(long double));
 
 
 //        Inicializamos las matrices
@@ -211,11 +207,11 @@ int main() {
 
         stateLat = (int **) malloc(L * sizeof(int *));
         poisLat = (double **) malloc(L * sizeof(double *));
-        weights = malloc(L*L*sizeof(double));
+        weights = malloc(L * L * sizeof(double));
 
         double **tk, elapsedTime;
 
-        tk = malloc(L*sizeof(double*));
+        tk = malloc(L * sizeof(double *));
 
         for (i = 0; i < L; i++) {
             tk[i] = malloc(L * sizeof(double));
@@ -228,14 +224,11 @@ int main() {
         fillPoisLat(poisLat);
 
 
-
-
-
         size_t maxMc = mcPas;
-        long double consTime=0., consTimeDesv = 0.;
+        long double consTime = 0., consTimeDesv = 0.;
         for (k = 0; k < numProm; k++) {
-            printf("%d \n", (int)k);
-            double paramTkOld=0., paramTkNew=0.;
+            printf("%d \n", (int) k);
+            double paramTkOld = 0., paramTkNew = 0.;
 
 
             initTimes(tk);
@@ -245,14 +238,13 @@ int main() {
 
 //            fill weights
 
-            for(i=0;i<L;i++){
-                for(j=0;j<L;j++){
+            for (i = 0; i < L; i++) {
+                for (j = 0; j < L; j++) {
 
-                    weights[i*L+j] = tk[i][j]/poisLat[i][j];
-                    paramTkOld += weights[i*L+j];
+                    weights[i * L + j] = tk[i][j] / poisLat[i][j];
+                    paramTkOld += weights[i * L + j];
                 }
             }
-
 
 
             tiempo = 0.;
@@ -267,15 +259,15 @@ int main() {
 //            Calculamos el tiempo hasta el proximo cambio y sumamos al tiempo global,
 //            y vemos cual es el proceso cambiado
 
-                    elapsedTime =  rand_time(poisMean2, paramTkOld);
+                    elapsedTime = rand_time(poisMean2, paramTkOld);
 
                     tiempo += elapsedTime;
 
                     updateTime(tk, elapsedTime);
-                    paramTkNew = paramTkOld+elapsedTime/poisMean2;
-                    for(int l=0; l<L;l++){
-                        for(int cont=0; cont<L; cont++){
-                            weights[l*L+cont]+=elapsedTime/poisLat[l][cont];
+                    paramTkNew = paramTkOld + elapsedTime / poisMean2;
+                    for (int l = 0; l < L; l++) {
+                        for (int cont = 0; cont < L; cont++) {
+                            weights[l * L + cont] += elapsedTime / poisLat[l][cont];
                         }
                     }
 
@@ -285,13 +277,13 @@ int main() {
 
                     col = (int) proc % L;
 
-                    paramTkOld = paramTkNew-tk[row][col]/poisLat[row][col];
+                    paramTkOld = paramTkNew - tk[row][col] / poisLat[row][col];
                     tk[row][col] = 0.;
-                    weights[row*L+col] = 0.;
+                    weights[row * L + col] = 0.;
 
 //            El nodo seleccionado copia a un vecino al azar
 
-                    vecino = rand()%4;
+                    vecino = rand() % 4;
 
                     if (vecino == 0) {
                         stateLat[row][col] = stateLat[row][transPos(col - 1)];
@@ -303,35 +295,34 @@ int main() {
                         stateLat[row][col] = stateLat[transPos(row - 1)][col];
                     }
 
-                }
 
+                    mediaEstado = meanMtrxInt(stateLat, L, L);
 
-                mediaEstado = meanMtrxInt(stateLat, L, L);
+                    if (fabs(mediaEstado - 1.) < 0.1 / (double) (L * L) || fabs(mediaEstado) < 0.1 / (double) (L * L)) {
+                        maxMc = i;
+                        consTime += tiempo / (double) numProm;
+                        printf("tiempo prom %d \n", (int) maxMc);
+                        itersMax += (double) maxMc / (double) numProm;
+                        consTimeDesv += tiempo * tiempo / (double) numProm;
 
-                if (fabs(mediaEstado - 1.) < 0.1 / (double) (L * L) || fabs(mediaEstado) < 0.1 / (double) (L * L)) {
-                    maxMc = i;
-                    consTime += tiempo/(double)numProm;
-                    printf("tiempo prom %d \n",(int)maxMc);
-                    itersMax += (double)maxMc/(double)numProm;
-                    consTimeDesv += tiempo * tiempo/(double)numProm;
-                    break;
+                    }
                 }
             }
-            if(maxMc == mcPas){
-                printf("No se ha llegado al consenso a L=%d con %d pasos monte carlo\n", L, (int)mcPas);
 
-            }
+            printf("No se ha llegado al consenso a L=%d con %d pasos monte carlo\n", L, (int) mcPas);
+
+            endMC:;
 
         }
 
         printf("iters medias consenso %f \n", itersMax);
 
-        allData[m][0] = L*L;
+        allData[m][0] = L * L;
         allData[m][1] = consTime;
         allData[m][2] = consTimeDesv;
 
 //        Liberamos
-        for(i=0;i<L;i++){
+        for (i = 0; i < L; i++) {
             free(poisLat[i]);
             free(tk[i]);
             free(stateLat[i]);
@@ -344,23 +335,23 @@ int main() {
         stateLat = NULL;
     }
 
-    printf("expected time %f \n", sqrt(poisMean2*M_PI/2.));
+    printf("expected time %f \n", sqrt(poisMean2 * M_PI / 2.));
 
 
     FILE *fout = fopen("/home/alex/CLionProjects/tfg/results/tiempo_consenso_NM.dat", "w");
     fprintf(fout, "#L, tiempo consenso, desv\n");
     for (i = 0; i < numIters; i++)
-        fprintf(fout, "%Le %Le %Le\n", allData[i][0],allData[i][1],
-                sqrtl(allData[i][2]-allData[i][1]*allData[i][1]));
+        fprintf(fout, "%Le %Le %Le\n", allData[i][0], allData[i][1],
+                sqrtl(allData[i][2] - allData[i][1] * allData[i][1]));
 
     fclose(fout);
 
 
-    for(i=0;i<numIters;i++){
+    for (i = 0; i < numIters; i++) {
         free(allData[i]);
     }
     free(allData);
-    allData=NULL;
+    allData = NULL;
 
     return 0;
 }

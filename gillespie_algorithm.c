@@ -44,10 +44,9 @@ void fillStateLat(int **stateLat) {
 
     for (i = 0; i < L; i++) {
         for (j = 0; j < L; j++) {
-            if((double)rand()/RAND_MAX < 0.5){
+            if ((double) rand() / RAND_MAX < 0.5) {
                 stateLat[i][j] = 1;
-            }
-            else{
+            } else {
                 stateLat[i][j] = 0;
             }
         }
@@ -152,24 +151,22 @@ int main() {
     size_t proc;
 
 
-
-
     int vecino, row, col;
 
     long double **allData;
-    size_t numIters=(size_t)((log((double)maxL/L)/log(2.))+1);
+    size_t numIters = (size_t) ((log((double) maxL / L) / log(2.)) + 1);
 
-    allData = (long double**)malloc(numIters*sizeof(long double*));
+    allData = (long double **) malloc(numIters * sizeof(long double *));
 
     double **poisLat;
     int **stateLat;
 
-    for(m=0;L<maxL;L*=2, m++) {
+    for (m = 0; L < maxL; L *= 2, m++) {
         printf("L=%d \n", L);
 
         double itersMax = 0.;
 
-        allData[m] = malloc(3*sizeof(long double));
+        allData[m] = malloc(3 * sizeof(long double));
 
 
 //        Inicializamos las matrices
@@ -177,7 +174,6 @@ int main() {
 
         stateLat = (int **) malloc(L * sizeof(int *));
         poisLat = (double **) malloc(L * sizeof(double *));
-
 
 
         for (i = 0; i < L; i++) {
@@ -190,9 +186,9 @@ int main() {
         fillPoisLat(poisLat);
 
         size_t maxMc = mcPas;
-        long double consTime=0., consTimeDesv = 0.;
+        long double consTime = 0., consTimeDesv = 0.;
         for (k = 0; k < numProm; k++) {
-            printf("%d \n", (int)k);
+            printf("%d \n", (int) k);
 
 
             srand(seed++);
@@ -219,7 +215,7 @@ int main() {
 
 //            El nodo seleccionado copia a un vecino al azar
 
-                    vecino = rand()%4;
+                    vecino = rand() % 4;
 
                     if (vecino == 0) {
                         stateLat[col][row] = stateLat[col][transPos(row - 1)];
@@ -231,35 +227,34 @@ int main() {
                         stateLat[col][row] = stateLat[transPos(col - 1)][row];
                     }
 
-                }
 
+                    mediaEstado = meanMtrxInt(stateLat, L, L);
 
-                mediaEstado = meanMtrxInt(stateLat, L, L);
-
-                if (fabs(mediaEstado - 1.) < 0.1 / (double) (L * L) || fabs(mediaEstado) < 0.1 / (double) (L * L)) {
-                    maxMc = i;
-                    consTime += tiempo/(double)numProm;
-                    printf("tiempo prom %d \n",(int)maxMc);
-                    itersMax += (double)maxMc/(double)numProm;
-                    consTimeDesv += tiempo * tiempo/(double)numProm;
-                    break;
+                    if (fabs(mediaEstado - 1.) < 0.1 / (double) (L * L) || fabs(mediaEstado) < 0.1 / (double) (L * L)) {
+                        maxMc = i;
+                        consTime += tiempo / (double) numProm;
+                        printf("tiempo prom %d \n", (int) maxMc);
+                        itersMax += (double) maxMc / (double) numProm;
+                        consTimeDesv += tiempo * tiempo / (double) numProm;
+                        goto endMC;
+                    }
                 }
             }
-            if(maxMc == mcPas){
-                printf("No se ha llegado al consenso a L=%d con %d pasos monte carlo\n", L, (int)mcPas);
 
-            }
+            printf("No se ha llegado al consenso a L=%d con %d pasos monte carlo\n", L, (int) mcPas);
+
+            endMC:;
 
         }
 
         printf("iters medias consenso %f \n", itersMax);
 
-        allData[m][0] = L*L;
+        allData[m][0] = L * L;
         allData[m][1] = consTime;
         allData[m][2] = consTimeDesv;
 
 //        Liberamos
-        for(i=0;i<L;i++){
+        for (i = 0; i < L; i++) {
             free(poisLat[i]);
             free(stateLat[i]);
         }
@@ -268,21 +263,20 @@ int main() {
     }
 
 
-
     FILE *fout = fopen("/home/alex/CLionProjects/tfg/results/tiempo_consenso.dat", "w");
     fprintf(fout, "#L, tiempo consenso, desv\n");
     for (i = 0; i < numIters; i++)
-        fprintf(fout, "%Le %Le %Le\n", allData[i][0],allData[i][1],
-                sqrtl(allData[i][2]-allData[i][1]*allData[i][1]));
+        fprintf(fout, "%Le %Le %Le\n", allData[i][0], allData[i][1],
+                sqrtl(allData[i][2] - allData[i][1] * allData[i][1]));
 
     fclose(fout);
 
 
-    for(i=0;i<numIters;i++){
+    for (i = 0; i < numIters; i++) {
         free(allData[i]);
     }
     free(allData);
-    allData=NULL;
+    allData = NULL;
 
     return 0;
 }
