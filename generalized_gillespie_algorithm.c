@@ -16,7 +16,8 @@ static double poisConst = 1.;
 
 double poisMean2 = 0;
 
-static size_t mcPas = 10000000, numProm = 100, maxL = 20;
+static size_t mcPas = 100000, numProm = 100, maxL = 20;
+
 
 void fillPoisLat(double **poisLat) {
 
@@ -99,23 +100,60 @@ long double rand_expo(double param) {
 }
 
 
-double rand_time(double param) {
+double rand_time(double param, double ** tk, double **paramLat) {
 
     double u = (double) rand() / RAND_MAX;
 
+    double A=0.;
 
-    return sqrt(-2. * poisMean2 * log(1 - u));
+    int i, j;
+
+    for(i=0;i<L;i++){
+        for(j=0;j<L;j++){
+            A += tk[i][j]/(paramLat[i][j]*paramLat[i][j]);
+
+        }
+    }
+
+
+    return param*(sqrt(A*A-2.*log(1-u)/param)-A);
 
 }
 
-size_t rand_process(double **poisLat, int numRow, int numCol) {
+size_t rand_process(double **poisLat, double **tk) {
 
-    if (1) {
+    double *weights, norma = 0.;
 
-        return (size_t) numRow * numCol * rand() / RAND_MAX;
-    } else {
-        return 0;
+    weights = malloc(L*L*sizeof(double));
+
+    int i, j;
+    for(i=0;i<L;i++){
+        for(j=0;j<L;j++){
+
+            norma += tk[i][j]/(poisLat[i][j]*poisLat[i][j]);
+            weights[i*L+j] = norma;
+
+        }
     }
+
+    if(norma == 0.){
+        free(weights);
+        return (size_t)rand()%(L*L);
+    }
+
+    double u = norma*(double)rand()/RAND_MAX;
+
+    for(i=0;i<L*L;i++){
+        if(u<weights[i]){
+            free(weights);
+            return (size_t)i;
+        }
+    }
+
+
+
+
+
 }
 
 int transPos(int pos) {
@@ -131,13 +169,37 @@ int transPos(int pos) {
 
 }
 
+void initTimes(double **tk){
+
+    int i, j;
+
+    for(i=0;i<L;i++){
+        for(j=0;j<L;j++){
+            tk[i][j] = 0.;
+        }
+    }
+
+}
+void updateTime(double **tk, double elapsedTime){
+
+    int i, j;
+
+    for(i=0;i<L;i++){
+        for(j=0;j<L;j++){
+            tk[i][j] += elapsedTime;
+        }
+    }
+
+}
+
 
 int main() {
 
 //Definimos la lattice de estado que se irá actualizando y la lattice con los coeficientes
 //poisson
-    unsigned int seed = (unsigned int) time(NULL);
 
+
+    unsigned int seed = (unsigned int)time(NULL);
     srand(seed++);
 
     size_t i, j, k, m;
@@ -178,9 +240,12 @@ int main() {
         stateLat = (int **) malloc(L * sizeof(int *));
         poisLat = (double **) malloc(L * sizeof(double *));
 
+        double **tk, elapsedTime;
 
+        tk = malloc(L*sizeof(double*));
 
         for (i = 0; i < L; i++) {
+            tk[i] = malloc(L * sizeof(double));
             poisLat[i] = malloc(L * sizeof(double));
             stateLat[i] = malloc(L * sizeof(int));
 
@@ -189,17 +254,23 @@ int main() {
 
         fillPoisLat(poisLat);
 
+
+
+
+
         size_t maxMc = mcPas;
         long double consTime=0., consTimeDesv = 0.;
         for (k = 0; k < numProm; k++) {
             printf("%d \n", (int)k);
 
+            initTimes(tk);
 
             srand(seed++);
             fillStateLat(stateLat);
+            initTimes(tk);
+            tiempo = 0.;
 
             maxMc = mcPas;
-            tiempo = 0.;
 
 
             for (i = 0; i < mcPas; i++) {
@@ -209,26 +280,32 @@ int main() {
 //            Calculamos el tiempo hasta el proximo cambio y sumamos al tiempo global,
 //            y vemos cual es el proceso cambiado
 
-                    tiempo += rand_time(poisMean2);
+                    elapsedTime =  rand_time(poisMean2, tk, poisLat);
 
-                    proc = rand_process(poisLat, L, L);
+                    tiempo += elapsedTime;
+
+                    updateTime(tk, elapsedTime);
+
+                    proc = rand_process(poisLat, tk);
 
                     row = (int) proc / L;
 
                     col = (int) proc % L;
+
+                    tk[row][col] = 0.;
 
 //            El nodo seleccionado copia a un vecino al azar
 
                     vecino = rand()%4;
 
                     if (vecino == 0) {
-                        stateLat[col][row] = stateLat[col][transPos(row - 1)];
+                        stateLat[row][col] = stateLat[row][transPos(col - 1)];
                     } else if (vecino == 1) {
-                        stateLat[col][row] = stateLat[col][transPos(row + 1)];
+                        stateLat[row][col] = stateLat[row][transPos(col + 1)];
                     } else if (vecino == 2) {
-                        stateLat[col][row] = stateLat[transPos(col + 1)][row];
+                        stateLat[row][col] = stateLat[transPos(row + 1)][col];
                     } else {
-                        stateLat[col][row] = stateLat[transPos(col - 1)][row];
+                        stateLat[row][col] = stateLat[transPos(row - 1)][col];
                     }
 
                 }
@@ -261,15 +338,19 @@ int main() {
 //        Liberamos
         for(i=0;i<L;i++){
             free(poisLat[i]);
+            free(tk[i]);
             free(stateLat[i]);
         }
+        free(tk);
+        tk = NULL;
         poisLat = NULL;
         stateLat = NULL;
     }
 
+    printf("expected time %f \n", sqrt(poisMean2*M_PI/2.));
 
 
-    FILE *fout = fopen("/home/alex/CLionProjects/tfg/results/tiempo_consenso.dat", "w");
+    FILE *fout = fopen("/home/alex/CLionProjects/tfg/results/tiempo_consenso_NM.dat", "w");
     fprintf(fout, "#L, tiempo consenso, desv\n");
     for (i = 0; i < numIters; i++)
         fprintf(fout, "%Le %Le %Le\n", allData[i][0],allData[i][1],
