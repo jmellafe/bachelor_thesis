@@ -10,13 +10,13 @@
 #include <unistd.h>
 
 
-int L = 16;
+int L = 10;
 
 static double poisConst = 1.;
 
 double poisMean2 = 0;
 
-static size_t mcPas = 100000, numProm = 100, maxL = 20;
+static size_t mcPas = 100000, numProm = 100, maxL = 45;
 
 
 void fillPoisLat(double **poisLat) {
@@ -28,10 +28,11 @@ void fillPoisLat(double **poisLat) {
             poisLat[i][j] = poisConst;
         }
     }
+    poisMean2 = 0.;
 
     for (i = 0; i < L; i++) {
         for (j = 0; j < L; j++) {
-            poisMean2 += 1 / (poisLat[i][j] * poisLat[i][j]);
+            poisMean2 += 1. / (poisLat[i][j] * poisLat[i][j]);
         }
     }
 
@@ -115,12 +116,14 @@ size_t rand_process(double **poisLat, double **tk, double paramTk, double *weigh
 
     double acomulado = 0.;
 
+
     for (int i = 0; i < L * L; i++) {
         acomulado += weights[i];
         if (u < acomulado) {
             return (size_t) i;
         }
     }
+    return NULL;
 
 
 }
@@ -144,7 +147,7 @@ void initTimes(double **tk) {
 
     for (i = 0; i < L; i++) {
         for (j = 0; j < L; j++) {
-            tk[i][j] = 0.;
+            tk[i][j] = 0.0000001;
         }
     }
 
@@ -187,14 +190,14 @@ int main() {
     int vecino, row, col;
 
     long double **allData;
-    size_t numIters = (size_t) ((log((double) maxL / L) / log(2.)) + 1);
+    size_t numIters = (size_t) (maxL-L)/10+1;
 
     allData = (long double **) malloc(numIters * sizeof(long double *));
 
     double **poisLat, *weights;
     int **stateLat;
 
-    for (m = 0; L < maxL; L *= 2, m++) {
+    for (m = 0; L < maxL; L += 10, m++) {
         printf("L=%d \n", L);
 
         double itersMax = 0.;
@@ -241,7 +244,7 @@ int main() {
             for (i = 0; i < L; i++) {
                 for (j = 0; j < L; j++) {
 
-                    weights[i * L + j] = tk[i][j] / poisLat[i][j];
+                    weights[i * L + j] = tk[i][j] / (poisLat[i][j]*poisLat[i][j]);
                     paramTkOld += weights[i * L + j];
                 }
             }
@@ -267,7 +270,7 @@ int main() {
                     paramTkNew = paramTkOld + elapsedTime / poisMean2;
                     for (int l = 0; l < L; l++) {
                         for (int cont = 0; cont < L; cont++) {
-                            weights[l * L + cont] += elapsedTime / poisLat[l][cont];
+                            weights[l * L + cont] += elapsedTime / (poisLat[l][cont]*poisLat[l][cont]);
                         }
                     }
 
@@ -277,7 +280,7 @@ int main() {
 
                     col = (int) proc % L;
 
-                    paramTkOld = paramTkNew - tk[row][col] / poisLat[row][col];
+                    paramTkOld = paramTkNew - tk[row][col] / (poisLat[row][col]*poisLat[row][col]);
                     tk[row][col] = 0.;
                     weights[row * L + col] = 0.;
 
@@ -304,7 +307,7 @@ int main() {
                         printf("tiempo prom %d \n", (int) maxMc);
                         itersMax += (double) maxMc / (double) numProm;
                         consTimeDesv += tiempo * tiempo / (double) numProm;
-
+                        goto endMC;
                     }
                 }
             }

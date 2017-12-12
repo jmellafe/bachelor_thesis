@@ -10,13 +10,13 @@
 #include <unistd.h>
 
 
-int L = 16;
+int L = 10;
 
 static double poisConst = 1.;
 
 double poisMean2 = 0;
 
-static size_t mcPas = 10000000, numProm = 100, maxL = 20;
+static size_t mcPas = 10000000, numProm = 100, maxL = 45;
 
 void fillPoisLat(double **poisLat) {
 
@@ -154,14 +154,14 @@ int main() {
     int vecino, row, col;
 
     long double **allData;
-    size_t numIters = (size_t) ((log((double) maxL / L) / log(2.)) + 1);
+    size_t numIters = (size_t) (maxL-L)/10+1;
 
     allData = (long double **) malloc(numIters * sizeof(long double *));
 
     double **poisLat;
     int **stateLat;
 
-    for (m = 0; L < maxL; L *= 2, m++) {
+    for (m = 0; L < maxL; L += 10, m++) {
         printf("L=%d \n", L);
 
         double itersMax = 0.;
