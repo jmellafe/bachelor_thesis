@@ -16,7 +16,7 @@ static double poisConst = 1.;
 
 double poisMean2 = 0;
 
-static size_t mcPas = 100000, numProm = 100, maxL = 45;
+static size_t mcPas = 100000, numProm = 100, maxL = 22;
 
 
 void fillPoisLat(double **poisLat) {
@@ -239,6 +239,8 @@ int main() {
             srand(seed++);
             fillStateLat(stateLat);
 
+            size_t sumStat = 0;
+
 //            fill weights
 
             for (i = 0; i < L; i++) {
@@ -246,6 +248,7 @@ int main() {
 
                     weights[i * L + j] = tk[i][j] / (poisLat[i][j]*poisLat[i][j]);
                     paramTkOld += weights[i * L + j];
+                    sumStat += stateLat[i][j];
                 }
             }
 
@@ -288,6 +291,8 @@ int main() {
 
                     vecino = rand() % 4;
 
+                    sumStat -= stateLat[row][col];
+
                     if (vecino == 0) {
                         stateLat[row][col] = stateLat[row][transPos(col - 1)];
                     } else if (vecino == 1) {
@@ -297,11 +302,12 @@ int main() {
                     } else {
                         stateLat[row][col] = stateLat[transPos(row - 1)][col];
                     }
+                    sumStat += stateLat[row][col];
 
+//
+//                    mediaEstado = meanMtrxInt(stateLat, L, L);
 
-                    mediaEstado = meanMtrxInt(stateLat, L, L);
-
-                    if (fabs(mediaEstado - 1.) < 0.1 / (double) (L * L) || fabs(mediaEstado) < 0.1 / (double) (L * L)) {
+                    if (sumStat == L*L || sumStat == 0) {
                         maxMc = i;
                         consTime += tiempo / (double) numProm;
                         printf("tiempo prom %d \n", (int) maxMc);

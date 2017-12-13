@@ -16,7 +16,7 @@ static double poisConst = 1.;
 
 double poisMean2 = 0;
 
-static size_t mcPas = 10000000, numProm = 100, maxL = 45;
+static size_t mcPas = 10000000, numProm = 100, maxL = 22;
 
 void fillPoisLat(double **poisLat) {
 
@@ -111,7 +111,7 @@ size_t rand_process(double **poisLat, int numRow, int numCol) {
 
     if (1) {
 
-        return (size_t) numRow * numCol * rand() / RAND_MAX;
+        return (size_t) rand()%(numRow*numCol);
     } else {
         return 0;
     }
@@ -194,6 +194,17 @@ int main() {
             srand(seed++);
             fillStateLat(stateLat);
 
+            size_t sumStat = 0;
+
+//            fill weights
+
+            for (i = 0; i < L; i++) {
+                for (j = 0; j < L; j++) {
+
+                    sumStat += stateLat[i][j];
+                }
+            }
+
             maxMc = mcPas;
             tiempo = 0.;
 
@@ -217,20 +228,21 @@ int main() {
 
                     vecino = rand() % 4;
 
+                    sumStat -= stateLat[row][col];
+
                     if (vecino == 0) {
-                        stateLat[col][row] = stateLat[col][transPos(row - 1)];
+                        stateLat[row][col] = stateLat[row][transPos(col - 1)];
                     } else if (vecino == 1) {
-                        stateLat[col][row] = stateLat[col][transPos(row + 1)];
+                        stateLat[row][col] = stateLat[row][transPos(col + 1)];
                     } else if (vecino == 2) {
-                        stateLat[col][row] = stateLat[transPos(col + 1)][row];
+                        stateLat[row][col] = stateLat[transPos(row + 1)][col];
                     } else {
-                        stateLat[col][row] = stateLat[transPos(col - 1)][row];
+                        stateLat[row][col] = stateLat[transPos(row - 1)][col];
                     }
+                    sumStat += stateLat[row][col];
 
 
-                    mediaEstado = meanMtrxInt(stateLat, L, L);
-
-                    if (fabs(mediaEstado - 1.) < 0.1 / (double) (L * L) || fabs(mediaEstado) < 0.1 / (double) (L * L)) {
+                    if (sumStat == L*L || sumStat == 0) {
                         maxMc = i;
                         consTime += tiempo / (double) numProm;
                         printf("tiempo prom %d \n", (int) maxMc);
