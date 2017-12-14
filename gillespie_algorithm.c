@@ -10,13 +10,13 @@
 #include <unistd.h>
 
 
-int L = 10;
+int L = 20;
 
 static double poisConst = 1.;
 
 double poisMean2 = 0;
 
-static size_t mcPas = 10000000, numProm = 100, maxL = 22;
+static size_t mcPas = 10000000, numProm = 10000, maxL = 22;
 
 void fillPoisLat(double **poisLat) {
 
@@ -131,6 +131,54 @@ int transPos(int pos) {
 }
 
 
+double **histogram(double *data, size_t numBars, size_t len){
+    double **histo, max, min, h;
+
+    max = data[0];
+    min = data[0];
+    for(int i=1;i<len;i++){
+        if(min > data[i]){
+            min = data[i];
+        }
+        else if(max<data[i]){
+            max = data[i];
+        }
+    }
+
+    h = (max-min)/(double) numBars;
+
+    histo = (double **)malloc(3*sizeof(double*));
+
+    for(int i=0;i<2;i++){
+        histo[i] = malloc(numBars*sizeof(double));
+    }
+    for(int i=0;i<numBars;i++){
+        histo[0][i] = min+(i+1./2.)*h;
+        histo[1][i] = 0.;
+    }
+
+    for(int i=0;i<len;i++){
+        histo[1][(int)((data[i]-min)/h)]++;
+    }
+
+    for(int i=0;i<numBars;i++){
+        histo[1][i] /= (double)(h*len);
+    }
+
+    double norma = 0.;
+    for(int i=0;i<numBars;i++){
+        norma += h*histo[1][i];
+    }
+
+    return histo;
+
+
+
+
+}
+
+
+
 int main() {
 
 //Definimos la lattice de estado que se irá actualizando y la lattice con los coeficientes
@@ -160,6 +208,8 @@ int main() {
 
     double **poisLat;
     int **stateLat;
+    double *allTimes, coefCons = 0., coefConsLog = 0.;
+    allTimes = malloc(numProm*sizeof(double));
 
     for (m = 0; L < maxL; L += 10, m++) {
         printf("L=%d \n", L);
@@ -244,6 +294,9 @@ int main() {
 
                     if (sumStat == L*L || sumStat == 0) {
                         maxMc = i;
+                        allTimes[k] = (double)tiempo;
+                        coefConsLog += log((double)tiempo);
+                        coefCons += tiempo;
                         consTime += tiempo / (double) numProm;
                         printf("tiempo prom %d \n", (int) maxMc);
                         itersMax += (double) maxMc / (double) numProm;
@@ -275,11 +328,23 @@ int main() {
     }
 
 
-    FILE *fout = fopen("/home/alex/CLionProjects/tfg/results/tiempo_consenso.dat", "w");
+    size_t numBars = 100;
+    double **histo;
+
+    histo = histogram(allTimes, numBars, numProm);
+
+    double s = log(coefCons/(double)numProm) - coefConsLog/(double)numProm;
+
+    double sigma = (3-s+sqrt(pow((s-3),2.) + 24.*s))/(12.*s);
+
+    printf("Coeficiente sigma %f \n", sigma );
+    printf("Coeficiente otro %f \n", coefCons/(double)(numProm*sigma));
+
+
+    FILE *fout = fopen("/home/alex/CLionProjects/tfg/results/histogram.dat", "w");
     fprintf(fout, "#L, tiempo consenso, desv\n");
-    for (i = 0; i < numIters; i++)
-        fprintf(fout, "%Le %Le %Le\n", allData[i][0], allData[i][1],
-                sqrtl(allData[i][2] - allData[i][1] * allData[i][1]));
+    for (i = 0; i < numBars; i++)
+        fprintf(fout, "%f %f\n", histo[0][i], histo[1][i]);
 
     fclose(fout);
 
@@ -287,8 +352,13 @@ int main() {
     for (i = 0; i < numIters; i++) {
         free(allData[i]);
     }
+    for(i=0;i<2;i++){
+        free(histo[i]);
+    }
     free(allData);
+    free(histo);
     allData = NULL;
+    histo = NULL;
 
     return 0;
 }
