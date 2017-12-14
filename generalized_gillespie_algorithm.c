@@ -10,13 +10,13 @@
 #include <unistd.h>
 
 
-int L = 20;
+int L = 10;
 
 static double poisConst = 1.;
 
 double poisMean2 = 0;
 
-static size_t mcPas = 10000000, numProm = 10000, maxL = 22;
+static size_t mcPas = 10000000, numProm = 10000, maxL = 12;
 
 void fillPoisLat(double **poisLat) {
 
@@ -163,7 +163,7 @@ double **histogram(double *data, size_t numBars, size_t len){
         histo[i] = malloc(numBars*sizeof(double));
     }
     for(int i=0;i<numBars;i++){
-        histo[0][i] = min+(i+1)*h/2.;
+        histo[0][i] = min+(i+1./2.)*h;
         histo[1][i] = 0.;
     }
 

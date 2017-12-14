@@ -165,11 +165,6 @@ double **histogram(double *data, size_t numBars, size_t len){
         histo[1][i] /= (double)(h*len);
     }
 
-    double norma = 0.;
-    for(int i=0;i<numBars;i++){
-        norma += h*histo[1][i];
-    }
-
     return histo;
 
 
